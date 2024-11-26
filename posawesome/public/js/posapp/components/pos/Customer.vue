@@ -63,9 +63,9 @@ export default {
         callback: function (r) {
           if (r.message) {
             vm.customers = r.message;
-            console.log(r.message);
+            // console.log(r.message);
             vm.filteredCustomers = r.message; // Initialize filteredCustomers
-            console.info('loadCustomers');
+            // console.info('loadCustomers');
             if (vm.pos_profile.posa_local_storage) {
               localStorage.setItem('customer_storage', '');
               localStorage.setItem(

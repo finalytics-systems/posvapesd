@@ -196,6 +196,29 @@ export default {
   },
 
   methods: {
+    // Our own methods
+    get_bundles() {
+      frappe.call({
+        method: 'vapesd_customizations.vapesd_customizations.api.get_product_bundles',
+        args: {},
+        async: true,
+        callback: function (r) {
+          if (r.message) {
+            // console.log(r.message);
+            const bundles = r.message;
+            const bundleNames = bundles.map(item => item.bundle_name);
+            const allItems = bundles.flatMap(bundle => bundle.items);
+            const justNumbers = allItems.map(item => item.item_code);
+            // console.log(bundleNames);
+            console.log(justNumbers);
+            return bundles;
+          }
+        },
+      });
+    },
+
+
+    // posawesome methods
     show_offers() {
       evntBus.$emit('show_offers', 'true');
     },
@@ -285,6 +308,17 @@ export default {
       return items_headers;
     },
     add_item(item) {
+      const bundlesData = this.get_bundles();
+      debugger;
+      for (const bundle of bundlesData) {
+        const found = bundle.items.some(item => item.item_code == itemCode);
+        if (found) {
+          return [true, bundle.bundle_name];
+          console.log([true, bundle.bundle_name]);
+        }
+        return [false, null];
+      }
+
       if (item.has_variants) {
         evntBus.$emit('open_variants_model', item, this.items);
       } else {
