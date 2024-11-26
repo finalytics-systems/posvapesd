@@ -28,6 +28,7 @@ from posawesome.posawesome.doctype.delivery_charges.delivery_charges import (
 )
 from erpnext.accounts.party import get_party_account_currency
 from erpnext.controllers.accounts_controller import get_payment_terms
+from vapesd_customizations.utils.caching import redis_cache
 
 
 @frappe.whitelist()
@@ -312,33 +313,46 @@ def get_customer_group_condition(pos_profile):
 
 @frappe.whitelist()
 def get_customer_names(pos_profile):
-    pos_profile = json.loads(pos_profile)
-    condition = ""
-    condition += get_customer_group_condition(pos_profile)
-    customers = frappe.db.sql(
-        """
-        SELECT name, mobile_no, email_id, tax_id, customer_name, primary_address
-        FROM `tabCustomer`
-        WHERE {0}
-        ORDER by name
-        """.format(
-            condition
-        ),
-        as_dict=1,
-    )
-    return customers
+    _pos_profile = json.loads(pos_profile)
+    ttl = _pos_profile.get("posa_server_cache_duration")
+    if ttl:
+        ttl = int(ttl) * 60
+
+    @redis_cache(ttl=ttl or 1800)
+    def __get_customer_names(pos_profile):
+        return _get_customer_names(pos_profile)
+
+    def _get_customer_names(pos_profile):
+        pos_profile = json.loads(pos_profile)
+        condition = ""
+        condition += get_customer_group_condition(pos_profile)
+        customers = frappe.db.sql(
+            """
+            SELECT name, mobile_no, customer_name
+            FROM `tabCustomer`
+            WHERE {0}
+            ORDER by name
+            """.format(
+                condition
+            ),
+            as_dict=1,
+        )
+        return customers
+
+    if _pos_profile.get("posa_use_server_cache"):
+        return __get_customer_names(pos_profile)
+    else:
+        return _get_customer_names(pos_profile)
+
 
 
 @frappe.whitelist()
 def get_sales_person_names():
-    sales_persons = frappe.db.sql(
-        """
-        SELECT name, sales_person_name
-        FROM `tabSales Person`
-        ORDER by name
-        LIMIT 0, 10000
-        """,
-        as_dict=1,
+    sales_persons = frappe.get_list(
+        "Sales Person",
+        filters={"enabled": 1},
+        fields=["name", "sales_person_name"],
+        limit_page_length=100000,
     )
     return sales_persons
 

@@ -1,67 +1,51 @@
+<style scoped>
+.bordered-input .v-input__control {
+  border: 1px solid #0097A7;
+}
+
+.bordered-input .v-input__control:focus-within {
+  border-color: #0097A7;
+}
+
+.bordered-input .v-input__slot {
+  border: none;
+  /* Remove default border */
+}
+</style>
+
 <template>
   <div>
-    <v-autocomplete
-      dense
-      clearable
-      auto-select-first
-      outlined
-      color="primary"
-      :label="frappe._('Customer')"
-      v-model="customer"
-      :items="customers"
-      item-text="customer_name"
-      item-value="name"
-      background-color="white"
-      :no-data-text="__('Customer not found')"
-      hide-details
-      :filter="customFilter"
-      :disabled="readonly"
-      append-icon="mdi-plus"
-      @click:append="new_customer"
-      prepend-inner-icon="mdi-account-edit"
-      @click:prepend-inner="edit_customer"
-    >
+    <v-autocomplete dense clearable auto-select-first outlined color="primary" :label="frappe._('Select Customer')"
+      v-model="customer" :items="filteredCustomers" item-text="customer_name" item-value="name" background-color="white"
+      :no-data-text="__('Customer not found')" hide-details :disabled="readonly" append-icon="mdi-plus"
+      @click:append="new_customer" prepend-inner-icon="mdi-account-edit"
+      @click:prepend-inner="edit_customer">
+      <template v-slot:prepend>
+        <v-text-field v-model="searchQuery" label="Search Customer Name / Mobile" @keyup.enter="searchCustomers" append-icon="mdi-magnify"
+          @click:append="searchCustomers" dense hide-details outlined :style="{ borderColor: '#0097A7', width: '300px', marginTop: '-7px' }"
+          class="bordered-input search-field"></v-text-field>
+      </template>
       <template v-slot:item="data">
-        <template>
-          <v-list-item-content>
-            <v-list-item-title
-              class="primary--text subtitle-1"
-              v-html="data.item.customer_name"
-            ></v-list-item-title>
-            <v-list-item-subtitle
-              v-if="data.item.customer_name != data.item.name"
-              v-html="`ID: ${data.item.name}`"
-            ></v-list-item-subtitle>
-            <v-list-item-subtitle
-              v-if="data.item.tax_id"
-              v-html="`TAX ID: ${data.item.tax_id}`"
-            ></v-list-item-subtitle>
-            <v-list-item-subtitle
-              v-if="data.item.email_id"
-              v-html="`Email: ${data.item.email_id}`"
-            ></v-list-item-subtitle>
-            <v-list-item-subtitle
-              v-if="data.item.mobile_no"
-              v-html="`Mobile No: ${data.item.mobile_no}`"
-            ></v-list-item-subtitle>
-            <v-list-item-subtitle
-              v-if="data.item.primary_address"
-              v-html="`Primary Address: ${data.item.primary_address}`"
-            ></v-list-item-subtitle>
-          </v-list-item-content>
-        </template>
+        <v-list-item-content>
+          <v-list-item-title class="primary--text subtitle-1" v-html="data.item.customer_name"></v-list-item-title>
+          <v-list-item-subtitle v-if="data.item.customer_name != data.item.name"
+            v-html="`ID: ${data.item.name}`"></v-list-item-subtitle>
+          <v-list-item-subtitle v-if="data.item.mobile_no"
+            v-html="`Mobile No: ${data.item.mobile_no}`"></v-list-item-subtitle>
+        </v-list-item-content>
       </template>
     </v-autocomplete>
   </div>
 </template>
-
 <script>
 import { evntBus } from '../../bus';
 export default {
   data: () => ({
     pos_profile: '',
     customers: [],
+    filteredCustomers: [],
     customer: '',
+    searchQuery: '',
     readonly: false,
   }),
 
@@ -79,6 +63,8 @@ export default {
         callback: function (r) {
           if (r.message) {
             vm.customers = r.message;
+            console.log(r.message);
+            vm.filteredCustomers = r.message; // Initialize filteredCustomers
             console.info('loadCustomers');
             if (vm.pos_profile.posa_local_storage) {
               localStorage.setItem('customer_storage', '');
@@ -91,33 +77,24 @@ export default {
         },
       });
     },
+    searchCustomers() {
+      this.filteredCustomers = this.customers.filter(customer => {
+        const searchText = this.searchQuery.toLowerCase();
+        return (
+          customer.customer_name.toLowerCase().includes(searchText) ||
+          customer.name.toLowerCase().includes(searchText) ||
+          (customer.mobile_no && customer.mobile_no.toString().toLowerCase().includes(searchText)) // Convert to string
+        );
+      });
+    }
+    ,
     new_customer() {
       evntBus.$emit('open_new_customer');
     },
     edit_customer() {
       evntBus.$emit('open_edit_customer');
     },
-    customFilter(item, queryText, itemText) {
-      const textOne = item.customer_name
-        ? item.customer_name.toLowerCase()
-        : '';
-      const textTwo = item.tax_id ? item.tax_id.toLowerCase() : '';
-      const textThree = item.email_id ? item.email_id.toLowerCase() : '';
-      const textFour = item.mobile_no ? item.mobile_no.toLowerCase() : '';
-      const textFifth = item.name.toLowerCase();
-      const searchText = queryText.toLowerCase();
-
-      return (
-        textOne.indexOf(searchText) > -1 ||
-        textTwo.indexOf(searchText) > -1 ||
-        textThree.indexOf(searchText) > -1 ||
-        textFour.indexOf(searchText) > -1 ||
-        textFifth.indexOf(searchText) > -1
-      );
-    },
   },
-
-  computed: {},
 
   created: function () {
     this.$nextTick(function () {

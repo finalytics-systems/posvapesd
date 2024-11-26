@@ -574,7 +574,7 @@
               auto-select-first
               outlined
               color="primary"
-              :label="frappe._('Sales Person')"
+              :label="frappe._('Sales Personss1s')"
               v-model="sales_person"
               :items="sales_persons"
               item-text="sales_person_name"
@@ -584,6 +584,7 @@
               hide-details
               :filter="salesPersonFilter"
               :disabled="readonly"
+              :rules="sales_person_rules"
             >
               <template v-slot:item="data">
                 <template>
@@ -684,6 +685,7 @@ export default {
     addresses: [],
     sales_persons: [],
     sales_person: '',
+    sales_person_rules: [],
     paid_change: 0,
     order_delivery_date: false,
     paid_change_rules: [],
@@ -756,6 +758,15 @@ export default {
       if (this.is_cashback && total_change != -this.diff_payment) {
         evntBus.$emit('show_mesage', {
           text: `Error in change calculations!`,
+          color: 'error',
+        });
+        frappe.utils.play_sound('error');
+        return;
+      }
+
+      if (!this.sales_person) {
+        evntBus.$emit('show_mesage', {
+          text: `Please select a sales person`,
           color: 'error',
         });
         frappe.utils.play_sound('error');
@@ -849,6 +860,14 @@ export default {
       this.invoice_doc.payments.forEach((payment) => {
         payment.amount = 0;
       });
+    },
+    updateSalesPersonRules() {
+      this.sales_person_rules = []; // Clear existing rules
+
+      // Add a rule that checks if the sales person is selected
+      this.sales_person_rules.push(v => !!v || 'Sales Person is required');
+
+      // You can add more complex conditions here if needed in the future
     },
     load_print_page() {
       const print_format =
